@@ -1,93 +1,75 @@
-import { defineStore } from "pinia";
+// import axios from "axios";
+import fetchJsonp from "fetch-jsonp";
 
-export const mainStore = defineStore("main", {
-  state: () => {
-    return {
-      imgLoadStatus: false, // 壁纸加载状态
-      innerWidth: null, // 当前窗口宽度
-      coverType: "0", // 壁纸种类
-      siteStartShow: false, // 建站日期显示
-      musicClick: false, // 音乐链接是否跳转
-      musicIsOk: false, // 音乐是否加载完成
-      musicVolume: 0, // 音乐音量;
-      musicOpenState: false, // 音乐面板开启状态
-      backgroundShow: false, // 壁纸展示状态
-      boxOpenState: false, // 盒子开启状态
-      mobileOpenState: false, // 移动端开启状态
-      mobileFuncState: false, // 移动端功能区开启状态
-      setOpenState: false, // 设置页面开启状态
-      playerState: false, // 当前播放状态
-      playerTitle: null, // 当前播放歌曲名
-      playerArtist: null, // 当前播放歌手名
-      playerLrc: "歌词加载中", // 当前播放歌词
-      playerLrcShow: true, // 是否显示底栏歌词
-      footerBlur: true, // 底栏模糊
-      playerAutoplay: false, // 是否自动播放
-      playerLoop: "all", // 循环播放 "all", "one", "none"
-      playerOrder: "list", // 循环顺序 "list", "random"
-    };
-  },
-  getters: {
-    // 获取歌词
-    getPlayerLrc(state) {
-      return state.playerLrc;
-    },
-    // 获取歌曲信息
-    getPlayerData(state) {
-      return {
-        name: state.playerTitle,
-        artist: state.playerArtist,
-      };
-    },
-    // 获取页面宽度
-    getInnerWidth(state) {
-      return state.innerWidth;
-    },
-  },
-  actions: {
-    // 更改当前页面宽度
-    setInnerWidth(value) {
-      this.innerWidth = value;
-      if (value >= 720) {
-        this.mobileOpenState = false;
-        this.mobileFuncState = false;
-      }
-    },
-    // 更改播放状态
-    setPlayerState(value) {
-      if (value) {
-        this.playerState = false;
-      } else {
-        this.playerState = true;
-      }
-    },
-    // 更改歌词
-    setPlayerLrc(value) {
-      this.playerLrc = value;
-    },
-    // 更改歌曲数据
-    setPlayerData(title, artist) {
-      this.playerTitle = title;
-      this.playerArtist = artist;
-    },
-    // 更改壁纸加载状态
-    setImgLoadStatus(value) {
-      this.imgLoadStatus = value;
-    },
-  },
-  persist: {
-    key: "data",
-    storage: window.localStorage,
-    paths: [
-      "coverType",
-      "musicVolume",
-      "siteStartShow",
-      "musicClick",
-      "playerLrcShow",
-      "footerBlur",
-      "playerAutoplay",
-      "playerLoop",
-      "playerOrder",
-    ],
-  },
-});
+/**
+ * 音乐播放器
+ */
+
+// 获取音乐播放列表
+export const getPlayerList = async (server, type, id) => {
+  const res = await fetch(
+    `${import.meta.env.VITE_SONG_API}?server=${server}&type=${type}&id=${id}`,
+  );
+  const data = await res.json();
+
+  if (data[0].url.startsWith("@")) {
+    // eslint-disable-next-line no-unused-vars
+    const [handle, jsonpCallback, jsonpCallbackFunction, url] = data[0].url.split("@").slice(1);
+    const jsonpData = await fetchJsonp(url).then((res) => res.json());
+    const domain = (
+      jsonpData.req_0.data.sip.find((i) => !i.startsWith("http://ws")) ||
+      jsonpData.req_0.data.sip[0]
+    ).replace("http://", "https://");
+
+    return data.map((v, i) => ({
+      name: v.name || v.title,
+      artist: v.artist || v.author,
+      url: domain + jsonpData.req_0.data.midurlinfo[i].purl,
+      cover: v.cover || v.pic,
+      lrc: v.lrc,
+    }));
+  } else {
+    return data.map((v) => ({
+      name: v.name || v.title,
+      artist: v.artist || v.author,
+      url: v.url,
+      cover: v.cover || v.pic,
+      lrc: v.lrc,
+    }));
+  }
+};
+
+/**
+ * 一言
+ */
+
+// 获取一言数据
+export const getHitokoto = async () => {
+  const res = await fetch("https://v1.hitokoto.cn");
+  return await res.json();
+};
+
+/**
+ * 天气
+ */
+
+// 获取高德地理位置信息
+export const getAdcode = async (key) => {
+  const res = await fetch(`https://restapi.amap.com/v3/ip?key=${key}`);
+  return await res.json();
+};
+
+// 获取高德地理天气信息
+export const getWeather = async (key, city) => {
+  const res = await fetch(
+    `https://restapi.amap.com/v3/weather/weatherInfo?key=${key}&city=${city}`,
+  );
+  return await res.json();
+};
+
+// 获取教书先生天气 API
+// https://api.oioweb.cn/doc/weather/GetWeather
+export const getOtherWeather = async () => {
+  const res = await fetch("https://uapis.cn/api/v1/misc/weather");
+  return await res.json();
+};
